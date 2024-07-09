@@ -10,12 +10,14 @@ type Server struct {
 	listenAddress string
 	ln            net.Listener
 	quitch        chan struct{}
+	msgChan       chan []byte
 }
 
 func NewServer(listenAddress string) *Server {
 	return &Server{
 		listenAddress: listenAddress,
 		quitch:        make(chan struct{}),
+		msgChan:       make(chan []byte, 10),
 	}
 }
 
@@ -27,9 +29,11 @@ func (server *Server) Start() error {
 	defer ln.Close()
 	server.ln = ln
 	log.Println("Server started on port", server.listenAddress)
+
 	go server.acceptLoop()
 
 	<-server.quitch
+	close(server.msgChan)
 
 	return nil
 }
@@ -59,12 +63,18 @@ func (server *Server) readLoop(conn net.Conn) {
 			continue
 		}
 
-		msg := buf[:n]
-		log.Println("received message:", string(msg))
+		server.msgChan <- buf[:n]
 	}
 }
 
 func main() {
 	server := NewServer(":3000")
+
+	go func() {
+		for msg := range server.msgChan {
+			fmt.Println("received msaage for connection:", string(msg))
+		}
+	}()
+
 	log.Fatal(server.Start())
 }
