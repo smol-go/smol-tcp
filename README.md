@@ -1,1 +1,1 @@
-A tcp server written in golang
+A simple tcp server written in golang
