@@ -6,18 +6,23 @@ import (
 	"net"
 )
 
+type Message struct {
+	from    string
+	payload []byte
+}
+
 type Server struct {
 	listenAddress string
 	ln            net.Listener
 	quitch        chan struct{}
-	msgChan       chan []byte
+	msgChan       chan Message
 }
 
 func NewServer(listenAddress string) *Server {
 	return &Server{
 		listenAddress: listenAddress,
 		quitch:        make(chan struct{}),
-		msgChan:       make(chan []byte, 10),
+		msgChan:       make(chan Message, 10),
 	}
 }
 
@@ -63,7 +68,10 @@ func (server *Server) readLoop(conn net.Conn) {
 			continue
 		}
 
-		server.msgChan <- buf[:n]
+		server.msgChan <- Message{
+			from:    conn.RemoteAddr().String(),
+			payload: buf[:n],
+		}
 	}
 }
 
@@ -72,7 +80,7 @@ func main() {
 
 	go func() {
 		for msg := range server.msgChan {
-			fmt.Println("received msaage for connection:", string(msg))
+			fmt.Printf("received message from connection (%s):%s\n", msg.from, string(msg.payload))
 		}
 	}()
 
